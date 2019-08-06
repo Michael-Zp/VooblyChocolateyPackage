@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>voobly</id>
+    <version>2.2.5.65</version>
+    <title>Voobly (Install)</title>
+    <authors>Voobly</authors>
+    <projectUrl>https://www.voobly.com/</projectUrl>
+    <!--<iconUrl>http://cdn.rawgit.com/__REPLACE_YOUR_REPO__/master/icons/bob.png</iconUrl>-->
+    <!-- <licenseUrl>Software License Location __REMOVE_OR_FILL_OUT__</licenseUrl> -->
+    <tags>voobly AoE2 Age Empire Gaming</tags>
+    <summary>Installs the Voobly gaming network launcher.</summary>
+    <description>voobly.com</description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
