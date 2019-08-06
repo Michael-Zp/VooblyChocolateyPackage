@@ -3,14 +3,17 @@
   <metadata>
     <id>voobly</id>
     <version>2.2.5.65</version>
+    <packageSourceUrl>https://github.com/Michael-Zp/VooblyChocolateyPackage</packageSourceUrl>
+    <owners>MichaelZp</owners>
     <title>Voobly (Install)</title>
     <authors>Voobly</authors>
     <projectUrl>https://www.voobly.com/</projectUrl>
-    <!--<iconUrl>http://cdn.rawgit.com/__REPLACE_YOUR_REPO__/master/icons/bob.png</iconUrl>-->
-    <!-- <licenseUrl>Software License Location __REMOVE_OR_FILL_OUT__</licenseUrl> -->
+    <iconUrl>https://github.com/Michael-Zp/VooblyChocolateyPackage/blob/master/icon.jpg</iconUrl>
+    <licenseUrl>https://www.voobly.com/pages/view/tos</licenseUrl>
     <tags>voobly AoE2 Age Empire Gaming</tags>
     <summary>Installs the Voobly gaming network launcher.</summary>
-    <description>voobly.com</description>
+    <description>Voobly is a software to connect to a gaming network. In the network you can play games like Age of Empires II with other people.</description>
+    <releaseNotes>First release of the chocolatey package for voobly. Will download both from EU and US servers, whichever is faster will be installed. Should be the same executable from both servers.</releaseNotes>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />

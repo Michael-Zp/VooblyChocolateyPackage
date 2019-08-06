@@ -1,128 +1,45 @@
 ﻿$ErrorActionPreference = 'Stop'; 
 $toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-$urlUs      = 'https://update.voobly.com/updates/voobly-v2.2.5.65-update-full.exe'
 $urlEu      = 'https://static.voobly.com/updates/voobly-v2.2.5.65-update-full.exe'
+$urlUs      = 'https://update.voobly.com/updates/voobly-v2.2.5.65-update-full.exe'
 
-do {
-  $tempFile = [System.IO.Path]::GetTempFileName()
-  $fileName = Split-Path $tempFile -Leaf
-  $exeUs = ".\$($fileName -replace ".tmp",".exe")"
-  Remove-Item $tempFile
-} while (Test-Path $exeUs)
+$fileLocation = "$toolsDir/install.exe"
+$fileLocationEu = "$toolsDir/installEu.exe"
+$fileLocationUs = "$toolsDir/installUs.exe"
 
-do {
-  $tempFile = [System.IO.Path]::GetTempFileName()
-  $fileName = Split-Path $tempFile -Leaf
-  $exeEu = ".\$($fileName -replace ".tmp",".exe")"
-  Remove-Item $tempFile
-} while (Test-Path $exeEu)
+$sb = {
+    Param($pn, $fl, $url, $url64, $modulePaths, $tempFile)
+    $modulePaths | Import-Module
+    Write-Host $pn $fl $url $url64
 
-$jobCode = {
-
-  Param($url, $size, $filePath)
-
-  Add-Type -AssemblyName System.Net.Http | Out-Null
-
-  $fs = New-Object System.IO.FileStream -ArgumentList $filePath, Append, Write
-  $bw = New-Object System.IO.BinaryWriter -ArgumentList $fs
-
-  $chunkSize = 250000
-  
-  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-
-  for ($i = 0; $i -lt $size / $chunkSize; $i++) {
-      $lower = $i * $chunkSize
-      $upper = [Math]::min($size, ($i + 1) * $chunkSize - 1)
-      
-      $request = [System.Net.HttpWebRequest]::Create($url)
-      $request.ContentType = 'application/x-msdos-program'
-      $request.AddRange($lower, $upper)
-      $response = $request.GetResponse()
-      
-      
-      $responseBody = $response.GetResponseStream()
-      $br = New-Object System.IO.BinaryReader -ArgumentList $responseBody
-
-      $buf = $br.ReadBytes($chunkSize)
-      $bw.Write($buf, 0, [Math]::min($chunkSize, $size - $i * $chunkSize)) | Out-Null
-
-      $progress = $i * $chunkSize / $size
-      Write-Output $progress
-  }
-  $br.Close()
-  $bw.Close()
-  $fs.Close()
-
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Get-ChocolateyWebFile $pn $fl $url $url64
 }
 
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$modulePaths = Get-Module -All | Select-Object -ExpandProperty Path
 
-$sizeUs     = (Invoke-WebRequest $urlUs -Method Head).Headers["Content-Length"]
-$sizeEu     = (Invoke-WebRequest $urlEu -Method Head).Headers["Content-Length"]
+Write-Host $modulePaths
 
+$tempFile = [System.IO.Path]::GetTempFileName()
+$jobEu = Start-Job -ScriptBlock $sb -ArgumentList $packageName, $fileLocationEu, $urlEu, $urlEu, $modulePaths, $tempFile
+$jobUs = Start-Job -ScriptBlock $sb -ArgumentList $packageName, $fileLocationUs, $urlUs, $urlUs, $modulePaths, $tempFile
 
-
-$jobUs = Start-Job -ScriptBlock $jobCode -ArgumentList $urlUs, $sizeUs, $exeUs
-$jobEu = Start-Job -ScriptBlock $jobCode -ArgumentList $urlEu, $sizeEu, $exeEu
-
-$runningState = "Running"
-$percentage = 0
-$percentageSteps = 0.1
-
-$resultUs = 0
-$resultEu = 0
-
-$statusUs = $false
-$statusEu = $false
-$sleepMilliseconds = 100
-
-for ($i = 0; $i -lt (60 * 60 * (1000 / $sleepMilliseconds)); $i++) {
-
-  $statusUs = (Get-Job -Id $jobUs.Id).State -ne $runningState
-  $statusEu = (Get-Job -Id $jobEu.Id).State -ne $runningState
-
-  $tempResultUs = (Receive-Job -Id $jobUs.Id)
-  $tempResultEu = (Receive-Job -Id $jobEu.Id)
-  
-  if($null -ne $tempResultEu)
-  {
-      $resultEu = $tempResultEu[$tempResultEu.Length - 1]
-  }
-
-  if($null -ne $tempResultUs)
-  {
-      $resultUs = $tempResultUs[$tempResultUs.Length - 1]
-  }
-  
-  $result = [Math]::Max($resultUs, $resultEu)
-
-  if($result -gt $percentage + $percentageSteps)
-  {
-      $percentage += $percentageSteps
-      $dispPerc = $percentage * 100
-      Write-Host "$dispPerc% ... " -NoNewline
-  }
-
-  if(($statusUs -or $statusEu) -and $percentage -ge 0.85)
-  {
-      Stop-Job $jobUs.Id
-      Stop-Job $jobEu.Id
-      Write-Host "100%"
-      break
-  }
-
-  Start-Sleep -Milliseconds $sleepMilliseconds
-}
-
-if($statusUs)
+while((Get-Job -Id $jobEu.Id).State -eq "Running" -and (Get-Job -Id $jobUs.Id).State -eq "Running" )
 {
-  $fileLocation = $exeUs
+    Start-Sleep -Milliseconds 50
 }
-else
+
+if((Get-Job -Id $jobEu.Id).State -eq "Completed")
 {
-  $fileLocation = $exeEu
+    Move-Item $fileLocationEu $fileLocation
 }
+else 
+{
+    Move-Item $fileLocationUs $fileLocation
+}
+
+Stop-Job -Id $jobEu.Id
+Stop-Job -Id $jobUs.Id
 
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName
@@ -134,8 +51,8 @@ $packageArgs = @{
 
   checksum      = 'F1691F7F45B68E638F47AC9B97BCC02C180F82389B3DAEF3DF3CEB131CE06D69'
   checksumType  = 'sha256'
-  checksum64    = $checksum
-  checksumType64= $checksumType
+  checksum64    = 'F1691F7F45B68E638F47AC9B97BCC02C180F82389B3DAEF3DF3CEB131CE06D69'
+  checksumType64= 'sha256'
 
   silentArgs   = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-'
   validExitCodes= @(0)
@@ -143,13 +60,16 @@ $packageArgs = @{
 
 Install-ChocolateyPackage @packageArgs 
 
-
-while($null -eq (Get-Process | Where-Object { $_.Name -eq 'voobly' }))
-{
-    Start-Sleep -Milliseconds 25
+for ($i = 0; $i -lt 100; $i++) {
+    Start-Sleep -Milliseconds 100
+    $proc = Get-Process | Where-Object { $_.Name -eq 'voobly' }
+    if($null -ne $proc)
+    {
+        Stop-Process $proc
+        break
+    }
 }
 
-Stop-Process -Name 'voobly'
-
-Remove-Item $exeUs -ErrorAction SilentlyContinue
-Remove-Item $exeEu -ErrorAction SilentlyContinue
+Remove-Item $fileLocationEu -ErrorAction SilentlyContinue
+Remove-Item $fileLocationUs -ErrorAction SilentlyContinue
+Remove-Item $fileLocation -ErrorAction SilentlyContinue

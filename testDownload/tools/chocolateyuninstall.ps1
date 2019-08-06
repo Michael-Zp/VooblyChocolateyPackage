@@ -1,17 +1,13 @@
 ﻿
+
+
 $ErrorActionPreference = 'Stop';
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName
-  softwareName  = 'Voobly*'
+  softwareName  = 'testDownload*'
   fileType      = 'EXE_MSI_OR_MSU'
   silentArgs    = "/qn /norestart"
   validExitCodes= @(0, 3010, 1605, 1614, 1641)
-}
-
-$proc = (Get-Process | Where-Object { $_.Name -eq 'voobly' })
-if($null -ne $proc)
-{
-    Stop-Process $proc
 }
 
 $uninstalled = $false
@@ -26,7 +22,6 @@ if ($key.Count -eq 1) {
       
       $packageArgs['file'] = ''
     } else {
-      $packageArgs['silentArgs'] = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-'
     }
 
     Uninstall-ChocolateyPackage @packageArgs
