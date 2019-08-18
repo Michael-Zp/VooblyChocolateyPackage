@@ -13,7 +13,7 @@ $fileLocationUs = "$toolsDir/installUs.exe"
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName
   unzipLocation = $toolsDir
-  fileType      = 'EXE_MSI_OR_MSU'
+  fileType      = 'EXE'
   file          = $fileLocation
 
   softwareName  = 'testDownload*'
@@ -82,6 +82,8 @@ $jobCodeMeasure =
 
 $downloadSuccess = "DownloadSuccess"
 
+Write-Host "Testing download speed to US and EU servers."
+
 $downloadJobEu = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationEu, $urlEu, $urlEu, $modulePaths, $downloadSuccess
 $downloadJobUs = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationUs, $urlUs, $urlUs, $modulePaths, $downloadSuccess
 
@@ -148,19 +150,23 @@ else
 	}
 }
 
+$chosenServer = "ChosenServer"
+
 if($downloadFromEuServer)
 {
-	Write-Host "Download from EU servers"
+	$chosenServer = "EU"
 	$url = $urlEu
 	$url64 = $urlEu
 }
 
 if($downloadFromUsServer)
 {
-	Write-Host "Download from US"
+	$chosenServer = "US"
 	$url = $urlUs
 	$url64 = $urlUs
 }
+
+Write-Host "Connection from the $chosenServer server was faster. Starting download from the $chosenServer server."
 
 Get-ChocolateyWebFile -PackageName $packageName -FileFullPath $fileLocation -Url $url -Url64bit $url64
 
