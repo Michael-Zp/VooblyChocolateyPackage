@@ -1,7 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'; 
 $toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
 $url        = ''
-$url64      = ''
 $urlEu      = 'https://static.voobly.com/updates/voobly-v2.2.5.65-update-full.exe'
 $urlUs      = 'https://update.voobly.com/updates/voobly-v2.2.5.65-update-full.exe'
 
@@ -13,144 +12,87 @@ $modulePaths = Get-Module -All | Select-Object -ExpandProperty Path
 
 $jobCodeMeasure = 
 {
-    Param($pn, $fl, $url, $url64, $modulePaths, $downloadSuccess)
-
-	$startDownloadTrigger = "StartedDownload"
+    Param($pn, $fl, $url, $modulePaths)
 
     $jobCodeDownload = {
-		Param($pn, $fl, $url, $url64, $modulePaths, $startDownloadTrigger)
+		Param($pn, $fl, $url, $modulePaths)
 		$modulePaths | Import-Module
 	
 		[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-		Write-Output $startDownloadTrigger
-		Get-ChocolateyWebFile -PackageName $pn -FileFullPath $fl -Url $url -Url64bit $url64
+		Write-Output "StartedDownload"
+		Get-ChocolateyWebFile -PackageName $pn -FileFullPath $fl -Url $url -Url64bit $url
 	}
 	  
-	$downloadJob = Start-Job -ScriptBlock $jobCodeDownload -ArgumentList $pn, $fl, $url, $url64, $modulePaths, $startDownloadTrigger
+	$downloadJob = Start-Job -ScriptBlock $jobCodeDownload -ArgumentList $pn, $fl, $url, $url, $modulePaths
 
-    $running = $true
-
-    while ($running) 
+    while ($true) 
     {
-        Start-Sleep -Milliseconds 100
-        if($running -and (Receive-Job -Id $downloadJob.Id) -eq $startDownloadTrigger)
+		Start-Sleep -Milliseconds 100
+        if($running -and (Receive-Job -Id $downloadJob.Id) -eq "StartedDownload")
         {
-			$fileDoesExist = $true
-			for ($i = 0; $i -lt 200; $i++) 
+			while(-not (Test-Path $fl))
 			{
-				if(Test-Path $fl)
-				{
-					$fileDoesExist = $true
-					break
-				}
-				Start-Sleep -Milliseconds 50
+				Start-Sleep 50
 			}
 
 			Start-Sleep -Seconds 1
 
-			$fileDoesExist = Test-Path $fl
-			
 			Stop-Job -Id $downloadJob.Id
-			$running = $false
-
-			if($fileDoesExist)
-			{
-				Write-Output $downloadSuccess
-			}
+			Write-Output "DownloadSuccess"
         }
     }
 }
 
-$downloadSuccess = "DownloadSuccess"
-
 Write-Host "Testing download speed to US and EU servers. The faster connection will be used to download the installer."
 
-$downloadJobEu = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationEu, $urlEu, $urlEu, $modulePaths, $downloadSuccess
-$downloadJobUs = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationUs, $urlUs, $urlUs, $modulePaths, $downloadSuccess
+$downloadJobEu = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationEu, $urlEu, $urlEu, $modulePaths
+$downloadJobUs = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationUs, $urlUs, $urlUs, $modulePaths
 
-$runningEu = $true
-$downloadEuSuccess = $false
-$runningUs = $true
-$downloadUsSuccess = $false
+$jobsCompleted = 0
+$downloadEuSuccess = $downloadUsSuccess = $false
 
-$completedState = "Completed"
-
-while ($runningEu -or $runningUs)
+for ($i = 0; $i -lt 200 -and ($jobsCompleted -lt 2); $i++) 
 {
 	Start-Sleep -Milliseconds 50
-	if($runningEu -and (Get-Job -Id $downloadJobEu.Id).State -eq $completedState)
+	if((Get-Job -Id $downloadJobEu.Id).State -eq "Completed")
 	{
-		$state = Receive-Job -Id $downloadJobEu.Id
-		if($state -eq $downloadSuccess)
-		{
-			$downloadEuSuccess = $true
-		}
-		$runningEu = $false
+		$downloadEuSuccess = (Receive-Job -Id $downloadJobEu.Id) -eq "DownloadSuccess"
+		$jobsCompleted++
+		Remove-Job -Id $downloadJobEu.Id
 	}
 
-	if($runningUs -and (Get-Job -Id $downloadJobUs.Id).State -eq $completedState)
+	if($runningUs -and (Get-Job -Id $downloadJobUs.Id).State -eq "Completed")
 	{
-		$state = Receive-Job -Id $downloadJobUs.Id
-		if($state -eq $downloadSuccess)
-		{
-			$downloadUsSuccess = $true
-		}
-		$runningUs = $false
+		$downloadUsSuccess = (Receive-Job -Id $downloadJobUs.Id) -eq "DownloadSuccess"
+		$jobsCompleted++
+		Remove-Job -Id $downloadJobUs.Id
 	}
 }
 
-if(-not $downloadEuSuccess -and -not $downloadUsSuccess)
+Stop-Job -Id $downloadJobEu.Id, $downloadJobUs.Id
+
+if(-not ($downloadEuSuccess -or $downloadUsSuccess))
 {
 	Write-Host "Download from US and EU servers failed. Check your internet connection."
 	return -1
 }
 
-$downloadFromEuServer = $false
-$downloadFromUsServer = $false
+$chosenServer = "EU"
+$url = $urlEu
 
-if((Get-Item $fileLocationEu).Length -lt (Get-Item $fileLocationUs).Length)
-{
-	if($downloadEuSuccess)
-	{
-		$downloadFromEuServer = $true
-	}
-	elseif($downloadUsSuccess) 
-	{
-		$downloadFromUsServer = $true
-	}
-}
-else
-{
-	if($downloadUsSuccess) 
-	{
-		$downloadFromEuServer = $true
-	}
-	elseif($downloadEuSuccess)
-	{
-		$downloadFromUsServer = $true
-	}
-}
+$fileLengthEu = (Get-Item $fileLocationEu -ErrorAction SilentlyContinue).Length
+$fileLengthUs = (Get-Item $fileLocationUs -ErrorAction SilentlyContinue).Length
 
-$chosenServer = "ChosenServer"
-
-if($downloadFromEuServer)
-{
-	$chosenServer = "EU"
-	$url = $urlEu
-	$url64 = $urlEu
-}
-
-if($downloadFromUsServer)
+if($fileLengthEu -lt $fileLengthUs)
 {
 	$chosenServer = "US"
 	$url = $urlUs
-	$url64 = $urlUs
 }
 
 Write-Host "Connection to the $chosenServer servers was faster. Starting download from the $chosenServer servers."
 
 
-Get-ChocolateyWebFile -PackageName $packageName -FileFullPath $fileLocation -Url $url -Url64bit $url64
+Get-ChocolateyWebFile -PackageName $packageName -FileFullPath $fileLocation -Url $url -Url64bit $url
 
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName
@@ -181,6 +123,4 @@ for ($i = 0; $i -lt 100; $i++) {
     }
 }
 
-Remove-Item $fileLocationEu -ErrorAction SilentlyContinue
-Remove-Item $fileLocationUs -ErrorAction SilentlyContinue
-Remove-Item $fileLocation -ErrorAction SilentlyContinue
+Remove-Item $fileLocationEu, $fileLocationUs, $fileLocation -ErrorAction SilentlyContinue
