@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop';
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName
   softwareName  = 'Voobly*'
-  fileType      = 'EXE_MSI_OR_MSU'
+  fileType      = 'EXE'
   silentArgs    = "/qn /norestart"
   validExitCodes= @(0, 3010, 1605, 1614, 1641)
 }
