@@ -8,7 +8,7 @@
     <title>Voobly (Install)</title>
     <authors>Voobly</authors>
     <projectUrl>https://www.voobly.com/</projectUrl>
-    <iconUrl>https://github.com/Michael-Zp/VooblyChocolateyPackage/blob/master/icon.jpg</iconUrl>
+    <iconUrl>https://rawcdn.githack.com/Michael-Zp/VooblyChocolateyPackage/006d48f94f41f8f3b25c884c6040f94f9f06662c/voobly_icon.png</iconUrl>
     <licenseUrl>https://www.voobly.com/pages/view/tos</licenseUrl>
     <tags>voobly AoE2 Age Empire Gaming</tags>
     <summary>Installs the Voobly gaming network launcher.</summary>
