@@ -11,20 +11,20 @@ $modulePaths = Get-Module -All | Select-Object -ExpandProperty Path
 
 $jobCodeMeasure = 
 {
-    Param($pn, $fl, $url, $modulePaths)
+    Param($pn, $fl, $url, $modulePaths, $securityProtocolTypes)
 
     $jobCodeDownload = {
-		Param($pn, $fl, $url, $modulePaths)
+		Param($pn, $fl, $url, $modulePaths, $securityProtocolTypes)
 		$modulePaths | Import-Module
 	
-		[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+		[System.Net.ServicePointManager]::SecurityProtocol = $securityProtocolTypes
 		Write-Output "StartedDownload"
 		Get-ChocolateyWebFile -PackageName $pn -FileFullPath $fl -Url $url
 	}
 	  
 
 
-	$downloadJob = Start-Job -ScriptBlock $jobCodeDownload -ArgumentList $pn, $fl, $url, $modulePaths
+	$downloadJob = Start-Job -ScriptBlock $jobCodeDownload -ArgumentList $pn, $fl, $url, $modulePaths, $securityProtocolTypes
 
     while ($true) 
     {
@@ -48,8 +48,10 @@ $jobCodeMeasure =
 
 Write-Host "Testing download speed to US and EU servers. The faster connection will be used to download the installer."
 
-$downloadJobEu = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationEu, $urlEu, $modulePaths
-$downloadJobUs = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationUs, $urlUs, $modulePaths
+$securityProtocolTypes = [System.Net.ServicePointManager]::SecurityProtocol
+
+$downloadJobEu = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationEu, $urlEu, $modulePaths, $securityProtocolTypes
+$downloadJobUs = Start-Job -ScriptBlock $jobCodeMeasure -ArgumentList $packageName, $fileLocationUs, $urlUs, $modulePaths, $securityProtocolTypes
 
 $jobsCompleted = 0
 $downloadEuSuccess = $downloadUsSuccess = $false
