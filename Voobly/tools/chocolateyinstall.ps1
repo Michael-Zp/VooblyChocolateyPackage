@@ -5,15 +5,20 @@ $urlUs      = 'https://update.voobly.com/updates/voobly-v2.2.5.65-update-full.ex
 
 $fileLocation = "$toolsDir/install.exe"
 
-$swEu = New-Object System.Diagnostics.Stopwatch;
-$swEu.Start()
-Get-WebHeaders -Url $urlEu | Out-Null
-$swEu.Stop()
+$trialCount = 5
 
+$swEu = New-Object System.Diagnostics.Stopwatch;
 $swUs = New-Object System.Diagnostics.Stopwatch;
-$swUs.Start()
-Get-WebHeaders -Url $urlUs | Out-Null
-$swUs.Stop()
+
+for ($i = 0; $i -lt $trialCount; $i++) {
+	$swEu.Start()
+	Get-WebHeaders -Url $urlEu | Out-Null
+	$swEu.Stop()
+
+	$swUs.Start()
+	Get-WebHeaders -Url $urlUs | Out-Null
+	$swUs.Stop()
+}
 
 $chosenServer = "EU"
 $url = $urlEu
