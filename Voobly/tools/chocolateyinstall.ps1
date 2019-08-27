@@ -5,25 +5,61 @@ $urlUs      = 'https://update.voobly.com/updates/voobly-v2.2.5.65-update-full.ex
 
 $fileLocation = "$toolsDir/install.exe"
 
-$trialCount = 5
+$trialCount = 3
 
 $swEu = New-Object System.Diagnostics.Stopwatch;
 $swUs = New-Object System.Diagnostics.Stopwatch;
 
+$timeEu = 0
+$successfullRequestsEu = 0
+$timeUs = 0
+$successfullRequestsUs = 0
+
 for ($i = 0; $i -lt $trialCount; $i++) {
-	$swEu.Start()
-	Get-WebHeaders -Url $urlEu *>$null
+	$swEu.Restart()
+	try
+	{
+		Get-WebHeaders -Url $urlEu | Out-Null
+		$timeEu += $swEu.ElapsedMilliseconds
+		$successfullRequestsEu += 1
+	}
+	catch
+	{ }
 	$swEu.Stop()
 
-	$swUs.Start()
-	Get-WebHeaders -Url $urlUs *>$null
+	$swUs.Restart()
+	try
+	{
+		Get-WebHeaders -Url $urlUs | Out-Null
+		$timeUs += $swUs.ElapsedMilliseconds
+		$successfullRequestsUs += 1
+	}
+	catch
+	{ }
 	$swUs.Stop()
+}
+
+
+if($successfullRequestsEu -gt 0)
+{
+	$avgTimeEu = $timeEu / $successfullRequestsEu
+}
+
+if($successfullRequestsUs -gt 0)
+{
+	$avgTimeUs = $timeUs / $successfullRequestsUs
+}
+
+if($successfullRequestsEu -eq 0 -and $successfullRequestsUs -eq 0)
+{
+	Write-Host "Could not connect to download server. Aborting."
+	return -1;
 }
 
 $chosenServer = "EU"
 $url = $urlEu
 
-if($swEu.ElapsedMilliseconds -ge $swUs.ElapsedMilliseconds)
+if($avgTimeEu -ge $avgTimeUs)
 {
 	$chosenServer = "US"
 	$url = $urlUs
