@@ -12,18 +12,18 @@ $swUs = New-Object System.Diagnostics.Stopwatch;
 
 for ($i = 0; $i -lt $trialCount; $i++) {
 	$swEu.Start()
-	Get-WebHeaders -Url $urlEu | Out-Null
+	Get-WebHeaders -Url $urlEu *>$null
 	$swEu.Stop()
 
 	$swUs.Start()
-	Get-WebHeaders -Url $urlUs | Out-Null
+	Get-WebHeaders -Url $urlUs *>$null
 	$swUs.Stop()
 }
 
 $chosenServer = "EU"
 $url = $urlEu
 
-if($swEu.ElapsedMilliseconds -lt $swUs.ElapsedMilliseconds)
+if($swEu.ElapsedMilliseconds -ge $swUs.ElapsedMilliseconds)
 {
 	$chosenServer = "US"
 	$url = $urlUs
